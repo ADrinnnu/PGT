@@ -106,6 +106,21 @@ const Schedule = () => {
     return new Date(dateString).toLocaleDateString('en-US', options);
   };
 
+  const getRouteName = (id) => {
+    const route = routes.find(r => r.id === id);
+    return route ? `${route.origin} → ${route.destination}` : `Route ID: ${id}`;
+  };
+
+  const getDriverName = (id) => {
+    const d = drivers.find(d => d.id === id);
+    return d ? `${d.firstName} ${d.lastName}` : `Driver ID: ${id}`;
+  };
+
+  const getVehiclePlate = (id) => {
+    const v = vehicles.find(v => v.id === id);
+    return v ? `${v.plateNumber} (${v.model})` : `Vehicle ID: ${id}`;
+  };
+
   return (
     <div className="p-8 max-w-7xl mx-auto animate-fade-in-up">
       <div className="flex justify-between items-center mb-8">
@@ -221,12 +236,12 @@ const Schedule = () => {
               {dispatches.map((dispatch) => (
                 <tr key={dispatch.id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-4 font-bold text-slate-800">
-                    <div>{dispatch.routeOrigin} <span className="text-slate-400 mx-1">→</span> {dispatch.routeDestination}</div>
+                    <div>{getRouteName(dispatch.routeId)}</div>
                     <div className="text-xs text-slate-400 font-normal mt-0.5">Route ID: {dispatch.routeId}</div>
                   </td>
                   <td className="p-4">
-                    <div className="font-bold text-slate-700">{dispatch.driverName}</div>
-                    <div className="text-sm text-slate-500">Plate: <span className="font-semibold">{dispatch.vehiclePlate}</span></div>
+                    <div className="font-bold text-slate-700">{getDriverName(dispatch.driverId)}</div>
+                    <div className="text-sm text-slate-500">Vehicle: <span className="font-semibold text-slate-700">{getVehiclePlate(dispatch.vehicleId)}</span></div>
                   </td>
                   <td className="p-4">
                     <div className="font-bold text-slate-700 flex items-center gap-2">
