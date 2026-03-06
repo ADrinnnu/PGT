@@ -31,7 +31,7 @@ const Schedule = () => {
       const headers = { 'Authorization': `Bearer ${token}` };
 
       const [dispRes, routeRes, driverRes, vehRes] = await Promise.all([
-        fetch(`${API_URL}/api/dispatches`, { headers }),
+        fetch(`${API_URL}/api/dispatch`, { headers }),
         fetch(`${API_URL}/api/transitroutes`, { headers }),
         fetch(`${API_URL}/api/drivers`, { headers }),
         fetch(`${API_URL}/api/vehicles`, { headers })
@@ -74,7 +74,7 @@ const Schedule = () => {
         payload.companyId = parseInt(formData.companyId);
       }
 
-      const response = await fetch(`${API_URL}/api/dispatches`, {
+      const response = await fetch(`${API_URL}/api/dispatch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
