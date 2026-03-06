@@ -1,0 +1,16 @@
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\bin\Debug\net8.0\TMS.Application.deps.json
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\bin\Debug\net8.0\TMS.Application.dll
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\bin\Debug\net8.0\TMS.Application.pdb
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\bin\Debug\net8.0\TMS.Domain.dll
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\bin\Debug\net8.0\TMS.Domain.pdb
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\TMS.Application.csproj.AssemblyReference.cache
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\TMS.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\TMS.Application.AssemblyInfoInputs.cache
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\TMS.Application.AssemblyInfo.cs
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\TMS.Application.csproj.CoreCompileInputs.cache
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\TMS.Application.sourcelink.json
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\TMS.Appl.24C5A7C5.Up2Date
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\TMS.Application.dll
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\refint\TMS.Application.dll
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\TMS.Application.pdb
+C:\Users\Aldrin\Documents\PGT\Backend\TMS.Application\obj\Debug\net8.0\ref\TMS.Application.dll
