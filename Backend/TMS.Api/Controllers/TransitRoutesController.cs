@@ -47,6 +47,18 @@ namespace TMS.Api.Controllers
 
             return Forbid();
         }
+        
+        [HttpDelete("{id}")]
+public async Task<IActionResult> DeleteRoute(int id)
+{
+    var route = await _context.TransitRoutes.FindAsync(id);
+    if (route == null) return NotFound();
+
+    _context.TransitRoutes.Remove(route);
+    await _context.SaveChangesAsync();
+
+    return NoContent();
+}
 
         [HttpPost]
         public async Task<IActionResult> CreateTransitRoute([FromBody] CreateTransitRouteRequest request)

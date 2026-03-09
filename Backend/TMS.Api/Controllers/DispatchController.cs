@@ -74,6 +74,18 @@ namespace TMS.Api.Controllers
 
             return Ok(new { message = "Dispatch scheduled successfully." });
         }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteDispatch(int id)
+        {
+            var dispatch = await _context.Dispatches.FindAsync(id);
+            if (dispatch == null) return NotFound();
+
+            _context.Dispatches.Remove(dispatch);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
     }
 
     public class CreateDispatchRequest
