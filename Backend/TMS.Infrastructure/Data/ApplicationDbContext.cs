@@ -13,5 +13,7 @@ namespace TMS.Infrastructure.Data
         public DbSet<Vehicle> Vehicles { get; set; }
         public DbSet<TransitRoute> TransitRoutes { get; set; }
         public DbSet<Dispatch> Dispatches { get; set; } 
+        public DbSet<TMS.Domain.Entities.CommuterWallet> CommuterWallets { get; set; }
+        public DbSet<TMS.Domain.Entities.Transaction> Transactions { get; set; }
     }
 }
