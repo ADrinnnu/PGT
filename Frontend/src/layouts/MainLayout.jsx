@@ -7,10 +7,12 @@ import {
 
 const MainLayout = () => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false); // Added state for the modal
   const location = useLocation();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  // Renamed from handleLogout to confirmLogout
+  const confirmLogout = () => {
     localStorage.removeItem('tms_token');
     localStorage.removeItem('tms_user');
     navigate('/login');
@@ -20,7 +22,7 @@ const MainLayout = () => {
   const user = userStr ? JSON.parse(userStr) : { name: 'Admin User', role: 'Head Admin' };
 
   return (
-    <div className="flex h-screen bg-slate-900 font-sans text-slate-900 overflow-hidden">
+    <div className="flex h-screen bg-slate-900 font-sans text-slate-900 overflow-hidden relative">
       <aside 
         className={`${
           isSidebarOpen ? 'w-[280px]' : 'w-30'
@@ -51,9 +53,10 @@ const MainLayout = () => {
           
           <div className="my-6 border-t border-slate-700 mx-4"></div>
           
-{user?.role === 'HeadAdmin' && (
-    <NavItem to="/companies" icon={<Building2 />} label="Companies" isOpen={isSidebarOpen} active={location.pathname === '/companies'} />
-)}          <NavItem to="/transactions" icon={<Wallet />} label="Transactions" isOpen={isSidebarOpen} active={location.pathname === '/transactions'} />
+          {user?.role === 'HeadAdmin' && (
+            <NavItem to="/companies" icon={<Building2 />} label="Companies" isOpen={isSidebarOpen} active={location.pathname === '/companies'} />
+          )}          
+          <NavItem to="/transactions" icon={<Wallet />} label="Transactions" isOpen={isSidebarOpen} active={location.pathname === '/transactions'} />
           <NavItem to="/reports" icon={<FileText />} label="Reports" isOpen={isSidebarOpen} active={location.pathname === '/reports'} />
           <NavItem to="/settings" icon={<Settings />} label="Settings" isOpen={isSidebarOpen} active={location.pathname === '/settings'} />
         </nav>
@@ -70,8 +73,9 @@ const MainLayout = () => {
               <p className="text-xs text-slate-400 whitespace-nowrap">{user.role}</p>
             </div>
             <button 
-              onClick={handleLogout}
+              onClick={() => setShowLogoutModal(true)} // Triggers the modal instead of instant logout
               className={`ml-auto p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-colors ${!isSidebarOpen && 'hidden'}`}
+              title="Log Out"
             >
               <LogOut size={16} />
             </button>
@@ -105,6 +109,34 @@ const MainLayout = () => {
           </main>
         </div>
       </div>
+
+      {/* Custom Logout Confirmation Modal */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full mx-4 animate-fade-in-up border border-slate-100">
+            <div className="h-16 w-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-6 mx-auto">
+              <LogOut size={28} />
+            </div>
+            <h3 className="text-2xl font-extrabold text-slate-800 mb-2 text-center">Log Out</h3>
+            <p className="text-slate-500 mb-8 text-center font-medium">Are you sure you want to end your current session?</p>
+            
+            <div className="flex gap-4">
+              <button 
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmLogout}
+                className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-200"
+              >
+                Yes, Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -117,7 +149,7 @@ const NavItem = ({ to, icon, label, isOpen, active }) => (
       ${active 
         ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' 
         : 'text-slate-400 hover:bg-slate-800 hover:text-emerald-400'
-      }
+      } 
     `}
   >
     <div className={`${active ? 'text-white' : 'text-slate-400 group-hover:text-emerald-400'} transition-colors`}>
