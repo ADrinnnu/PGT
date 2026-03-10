@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { HubConnectionBuilder } from '@microsoft/signalr';
-import { Play, Navigation, Clock, MapPin } from 'lucide-react';
+import { Play, Truck, Route as RouteIcon } from 'lucide-react';
 
 const busSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>`;
 const destSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`;
@@ -24,26 +24,75 @@ const customDestIcon = L.divIcon({
   popupAnchor: [0, -20]
 });
 
-const MapUpdater = ({ position }) => {
+const ROUTE_COLORS = ['#6366f1', '#f59e0b', '#ec4899', '#10b981', '#8b5cf6', '#06b6d4', '#ef4444'];
+
+const MapUpdater = ({ positions }) => {
   const map = useMap();
   useEffect(() => {
-    map.flyTo(position, map.getZoom(), { animate: true, duration: 1.5 });
-  }, [position, map]);
+    if (positions.length > 0) {
+      const bounds = L.latLngBounds(positions);
+      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+    }
+  }, [positions, map]);
   return null;
 };
 
 const LiveMap = () => {
-  const [position, setPosition] = useState([15.4828, 120.5943]);
-  const destination = [15.4694, 120.5960]; 
-  
-  const [distanceKm, setDistanceKm] = useState(0);
-  const [etaMinutes, setEtaMinutes] = useState(0);
-  const speedKmh = 45; 
-
+  const [fleet, setFleet] = useState({});
   const [connection, setConnection] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
 
+  const fetchFleetData = async () => {
+    const token = localStorage.getItem('tms_token');
+    const headers = { 'Authorization': `Bearer ${token}` };
+
+    try {
+      const [dispRes, routeRes, vehRes] = await Promise.all([
+        fetch('http://localhost:5072/api/dispatch', { headers }),
+        fetch('http://localhost:5072/api/transitroutes', { headers }),
+        fetch('http://localhost:5072/api/vehicles', { headers })
+      ]);
+
+      const dispatches = await dispRes.json();
+      const routes = await routeRes.json();
+      const vehicles = await vehRes.json();
+
+      const initialFleet = {};
+
+      dispatches.forEach((d, index) => {
+        const route = routes.find(r => `${r.origin} → ${r.destination}` === d.routeName);
+        const vehicle = vehicles.find(v => v.id === d.vehicleId);
+        const assignedColor = ROUTE_COLORS[index % ROUTE_COLORS.length];
+
+        if (route && vehicle && route.routeCoordinates) {
+          const coords = JSON.parse(route.routeCoordinates);
+          if (coords.length > 0) {
+            const offsetLat = coords[0][0] + (index * 0.0003);
+            const offsetLng = coords[0][1] + (index * 0.0003);
+
+            initialFleet[d.id] = {
+              id: d.id,
+              plate: vehicle.plateNumber,
+              routeName: d.routeName,
+              position: [offsetLat, offsetLng],
+              destination: coords[coords.length - 1],
+              path: coords,
+              pathIndex: 0,
+              color: assignedColor
+            };
+          }
+        }
+      });
+
+      setFleet(initialFleet);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
+    fetchFleetData();
+
     const newConnection = new HubConnectionBuilder()
       .withUrl("http://localhost:5072/trackingHub")
       .withAutomaticReconnect()
@@ -58,107 +107,122 @@ const LiveMap = () => {
         .then(() => {
           setIsConnected(true);
           connection.on("ReceiveLocationUpdate", (vehicleId, lat, lng) => {
-            setPosition([lat, lng]);
+            setFleet(prev => {
+              const updated = { ...prev };
+              Object.keys(updated).forEach(key => {
+                if (updated[key].plate === vehicleId) {
+                  updated[key].position = [lat, lng];
+                }
+              });
+              return updated;
+            });
           });
         })
         .catch(err => console.error(err));
     }
   }, [connection]);
 
-  useEffect(() => {
-    const currentLatLng = L.latLng(position[0], position[1]);
-    const destLatLng = L.latLng(destination[0], destination[1]);
-    
-    const distMeters = currentLatLng.distanceTo(destLatLng);
-    const distKm = distMeters / 1000;
-    
-    const timeHours = distKm / speedKmh;
-    const timeMinutes = Math.round(timeHours * 60);
-
-    setDistanceKm(distKm.toFixed(2));
-    setEtaMinutes(timeMinutes);
-  }, [position]);
-
   const simulateMovement = async () => {
-    if (connection && isConnected) {
-      const newLat = position[0] - 0.0010;
-      const newLng = position[1] + 0.0002;
+    if (!connection || !isConnected) return;
+    
+    const updatedFleet = { ...fleet };
+    
+    for (const key of Object.keys(updatedFleet)) {
+      const v = updatedFleet[key];
+      let nextIdx = v.pathIndex + 5;
+      if (nextIdx >= v.path.length) nextIdx = v.path.length - 1;
+      
+      updatedFleet[key].pathIndex = nextIdx;
+      const nextPos = v.path[nextIdx];
       
       try {
-        await connection.invoke("UpdateLocation", "ABC-1234", newLat, newLng);
-      } catch (err) {
-        console.error(err);
+        await connection.invoke("UpdateLocation", v.plate, nextPos[0], nextPos[1]);
+      } catch(e) {
+        console.error(e);
       }
     }
+    
+    setFleet(updatedFleet);
+  };
+
+  const getActivePositions = () => {
+    return Object.values(fleet).map(v => v.position);
   };
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-fade-in-up">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900">Live Vehicle Tracking</h1>
+          <h1 className="text-3xl font-extrabold text-slate-900">Live Fleet Tracking</h1>
           <p className="text-slate-500 mt-2">
-            Status: {isConnected ? <span className="text-emerald-600 font-bold">● Connected to Hub</span> : <span className="text-amber-500 font-bold">Connecting...</span>}
+            Status: {isConnected ? <span className="text-emerald-600 font-bold">● Connected to Tracking Hub</span> : <span className="text-amber-500 font-bold">Connecting...</span>}
           </p>
         </div>
         
         <button 
           onClick={simulateMovement}
-          disabled={!isConnected}
+          disabled={!isConnected || Object.keys(fleet).length === 0}
           className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl font-bold shadow-lg transition-all flex items-center gap-2"
         >
-          <Play size={20} /> Simulate GPS Ping
+          <Play size={20} /> Simulate Fleet Ping
         </button>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-[600px] z-0 relative">
         
-        <div className="absolute top-4 right-4 z-[1000] bg-white/95 backdrop-blur-sm p-6 rounded-2xl shadow-xl border border-slate-200 min-w-[280px]">
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Live Telemetry</h3>
+        <div className="absolute top-4 left-4 z-[1000] bg-white/95 backdrop-blur-sm p-5 rounded-2xl shadow-xl border border-slate-200 min-w-[300px] max-h-[550px] overflow-y-auto">
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Active Fleet Status</h3>
           
           <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center">
-                <Navigation size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Distance to Dest.</p>
-                <p className="font-bold text-slate-800">{distanceKm} km</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center">
-                <Clock size={20} />
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 font-medium">Estimated Time</p>
-                <p className="font-bold text-slate-800">{etaMinutes} mins (@ {speedKmh} km/h)</p>
-              </div>
-            </div>
+            {Object.values(fleet).length === 0 ? (
+              <p className="text-sm text-slate-500 font-medium">No active dispatches found.</p>
+            ) : (
+              Object.values(fleet).map((vehicle) => (
+                <div key={vehicle.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="h-8 w-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center">
+                      <Truck size={16} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-800">{vehicle.plate}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs font-medium ml-11" style={{ color: vehicle.color }}>
+                    <RouteIcon size={12} />
+                    <span className="text-slate-500">{vehicle.routeName}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        <MapContainer center={position} zoom={14} style={{ height: '100%', width: '100%' }}>
+        <MapContainer center={[15.4828, 120.5943]} zoom={13} style={{ height: '100%', width: '100%' }}>
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           />
-          <MapUpdater position={position} />
+          <MapUpdater positions={getActivePositions()} />
           
-          <Marker position={destination} icon={customDestIcon}>
-            <Popup>
-              <div className="font-bold text-slate-800">Final Destination</div>
-              <div className="text-sm text-slate-500">Terminal Hub</div>
-            </Popup>
-          </Marker>
+          {Object.values(fleet).map(vehicle => (
+            <React.Fragment key={vehicle.id}>
+              <Polyline positions={vehicle.path} color={vehicle.color} weight={5} opacity={0.8} />
+              
+              <Marker position={vehicle.destination} icon={customDestIcon}>
+                <Popup>
+                  <div className="font-bold text-slate-800">Destination</div>
+                  <div className="text-sm text-slate-500">{vehicle.routeName}</div>
+                </Popup>
+              </Marker>
 
-          <Marker position={position} icon={customBusIcon}>
-            <Popup>
-              <div className="font-bold text-slate-800">Vehicle: ABC-1234</div>
-              <div className="text-sm text-slate-500">Speed: {speedKmh} km/h</div>
-            </Popup>
-          </Marker>
+              <Marker position={vehicle.position} icon={customBusIcon}>
+                <Popup>
+                  <div className="font-bold text-slate-800">{vehicle.plate}</div>
+                  <div className="text-sm text-slate-500">{vehicle.routeName}</div>
+                </Popup>
+              </Marker>
+            </React.Fragment>
+          ))}
         </MapContainer>
       </div>
     </div>

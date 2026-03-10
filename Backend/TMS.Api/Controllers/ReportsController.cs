@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 using TMS.Infrastructure.Data;
 using System.Threading.Tasks;
 using System.Linq;
@@ -23,11 +24,24 @@ namespace TMS.Api.Controllers
         [HttpGet("revenue")]
         public async Task<IActionResult> GetRevenueAnalysis()
         {
+            var role = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value;
+            var companyIdString = User.FindFirst("companyId")?.Value;
             var currentMonth = DateTime.UtcNow.Month;
             var currentYear = DateTime.UtcNow.Year;
 
-            var revenueData = await _context.Transactions
-                .Where(t => t.Timestamp.Month == currentMonth && t.Timestamp.Year == currentYear && t.Status == "Success")
+            var query = _context.Transactions
+                .Where(t => t.Timestamp.Month == currentMonth && t.Timestamp.Year == currentYear && t.Status == "Success");
+
+            if (role != "HeadAdmin")
+            {
+                if (int.TryParse(companyIdString, out int companyId))
+                {
+                    query = query.Where(t => t.CompanyId == companyId);
+                }
+                else return Unauthorized();
+            }
+
+            var revenueData = await query
                 .GroupBy(t => t.Route)
                 .Select(g => new {
                     name = g.Key,
@@ -42,7 +56,21 @@ namespace TMS.Api.Controllers
         [HttpGet("trips")]
         public async Task<IActionResult> GetTripLogs()
         {
-            var dispatches = await _context.Dispatches.OrderByDescending(d => d.DepartureTime).Take(50).ToListAsync();
+            var role = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value;
+            var companyIdString = User.FindFirst("companyId")?.Value;
+
+            var query = _context.Dispatches.AsQueryable();
+
+            if (role != "HeadAdmin")
+            {
+                if (int.TryParse(companyIdString, out int companyId))
+                {
+                    query = query.Where(d => d.CompanyId == companyId);
+                }
+                else return Unauthorized();
+            }
+
+            var dispatches = await query.OrderByDescending(d => d.DepartureTime).Take(50).ToListAsync();
             var drivers = await _context.Drivers.ToListAsync();
             
             var logs = dispatches.Select(d => {

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Building, Bell, Save, Camera, LogOut } from 'lucide-react';
+import { User, Lock, Building, Bell, Save, Camera, Eye, EyeOff, LogOut } from 'lucide-react';
 
 const API_URL = 'http://localhost:5072';
 
@@ -9,14 +9,46 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
   
+  const [showVisibility, setShowVisibility] = useState({
+    current: false,
+    new: false,
+    confirm: false
+  });
+  
   const storedUser = JSON.parse(localStorage.getItem('tms_user')) || {};
   const [user, setUser] = useState({
     name: storedUser.name || "Admin User",
-    email: storedUser.email || "admin@tms-tarlac.com",
+    email: storedUser.email || "",
     role: storedUser.role || "Head Admin",
     company: "Tarlac Provincial Transport",
     bio: "Super Administrator for Tarlac Logistics Operations."
   });
+
+  const [passwords, setPasswords] = useState({
+    current: '',
+    new: '',
+    confirm: ''
+  });
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const token = localStorage.getItem('tms_token');
+      try {
+        const res = await fetch(`${API_URL}/api/auth/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser(prev => ({ ...prev, name: data.name, email: data.email, role: data.role }));
+          const updatedCache = { ...storedUser, name: data.name, email: data.email };
+          localStorage.setItem('tms_user', JSON.stringify(updatedCache));
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('tms_token');
@@ -28,33 +60,86 @@ const Settings = () => {
     setIsLoading(true);
     const token = localStorage.getItem('tms_token');
 
-    try {
-      const response = await fetch(`${API_URL}/api/auth/update-profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: user.name,
-          email: user.email,
-          bio: user.bio
-        }),
-      });
+    if (activeTab === 'profile') {
+      try {
+        const response = await fetch(`${API_URL}/api/auth/update-profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: user.name,
+            email: user.email,
+            bio: user.bio
+          }),
+        });
 
-      if (response.ok) {
-        const updatedUser = { ...storedUser, name: user.name, email: user.email };
-        localStorage.setItem('tms_user', JSON.stringify(updatedUser));
-        alert("Profile updated successfully!");
-      } else {
-        const errorData = await response.json();
-        alert(errorData.message || "Failed to update profile.");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.token) localStorage.setItem('tms_token', data.token);
+          
+          const updatedUser = { ...storedUser, name: user.name, email: user.email };
+          localStorage.setItem('tms_user', JSON.stringify(updatedUser));
+          alert("Profile updated successfully!");
+        } else {
+          let errorMsg = "Failed to update profile.";
+          try {
+              const errorData = await response.json();
+              errorMsg = errorData.message || errorMsg;
+          } catch {
+              errorMsg = `Server Error ${response.status}: Ensure backend is running.`;
+          }
+          alert(errorMsg);
+        }
+      } catch (error) {
+        alert("Network error. Please make sure the C# server is running.");
       }
-    } catch (error) {
-      alert("Network error. Please check your backend.");
-    } finally {
-      setIsLoading(false);
+    } else if (activeTab === 'security') {
+      if (!passwords.current || !passwords.new || !passwords.confirm) {
+        alert("Please fill in all password fields.");
+        setIsLoading(false);
+        return;
+      }
+      if (passwords.new !== passwords.confirm) {
+        alert("New passwords do not match.");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/api/auth/change-password`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            currentPassword: passwords.current,
+            newPassword: passwords.new
+          }),
+        });
+
+        if (response.ok) {
+          alert("Password updated successfully!");
+          setPasswords({ current: '', new: '', confirm: '' });
+          setShowVisibility({ current: false, new: false, confirm: false });
+        } else {
+          let errorMsg = "Failed to update password.";
+          try {
+              const errorData = await response.json();
+              errorMsg = errorData.message || errorMsg;
+          } catch {
+              errorMsg = `Server Error ${response.status}: Ensure backend is running.`;
+          }
+          alert(errorMsg);
+        }
+      } catch (error) {
+        alert("Network error. Please make sure the C# server is running.");
+      }
     }
+
+    setIsLoading(false);
   };
 
   return (
@@ -112,7 +197,7 @@ const Settings = () => {
               <div className="flex items-center gap-6 mb-8">
                 <div className="relative">
                   <div className="h-24 w-24 rounded-full bg-slate-100 flex items-center justify-center text-2xl font-bold text-slate-500 border-4 border-white shadow-md">
-                    {user.name.charAt(0)}
+                    {user.name ? user.name.charAt(0) : '?'}
                   </div>
                   <button className="absolute bottom-0 right-0 p-2 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 transition-colors shadow-sm">
                     <Camera size={14} />
@@ -162,15 +247,62 @@ const Settings = () => {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">Current Password</label>
-                  <input type="password" placeholder="••••••••" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" />
+                  <div className="relative">
+                    <input 
+                      type={showVisibility.current ? "text" : "password"} 
+                      placeholder="••••••••" 
+                      value={passwords.current}
+                      onChange={(e) => setPasswords({...passwords, current: e.target.value})}
+                      className="w-full p-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowVisibility({...showVisibility, current: !showVisibility.current})}
+                      className="absolute right-3 top-3.5 text-slate-400 hover:text-emerald-600 transition-colors"
+                    >
+                      {showVisibility.current ? <EyeOff size={20}/> : <Eye size={20}/>}
+                    </button> 
+                  </div>
                 </div>
+                
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">New Password</label>
-                  <input type="password" placeholder="••••••••" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" />
+                  <div className="relative">
+                    <input 
+                      type={showVisibility.new ? "text" : "password"} 
+                      placeholder="••••••••" 
+                      value={passwords.new}
+                      onChange={(e) => setPasswords({...passwords, new: e.target.value})}
+                      className="w-full p-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowVisibility({...showVisibility, new: !showVisibility.new})}
+                      className="absolute right-3 top-3.5 text-slate-400 hover:text-emerald-600 transition-colors"
+                    >
+                      {showVisibility.new ? <EyeOff size={20}/> : <Eye size={20}/>}
+                    </button> 
+                  </div>
                 </div>
+                
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">Confirm New Password</label>
-                  <input type="password" placeholder="••••••••" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" />
+                  <div className="relative">
+                    <input 
+                      type={showVisibility.confirm ? "text" : "password"} 
+                      placeholder="••••••••" 
+                      value={passwords.confirm}
+                      onChange={(e) => setPasswords({...passwords, confirm: e.target.value})}
+                      className="w-full p-3 pr-12 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setShowVisibility({...showVisibility, confirm: !showVisibility.confirm})}
+                      className="absolute right-3 top-3.5 text-slate-400 hover:text-emerald-600 transition-colors"
+                    >
+                      {showVisibility.confirm ? <EyeOff size={20}/> : <Eye size={20}/>}
+                    </button> 
+                  </div>
                 </div>
               </div>
             </div>
@@ -203,7 +335,7 @@ const Settings = () => {
           <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end">
             <button 
               onClick={handleSave}
-              disabled={isLoading}
+              disabled={isLoading || activeTab === 'company' || activeTab === 'notifications'}
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-200 font-bold transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50"
             >
               {isLoading ? 'Saving...' : <><Save size={18} /> Save Changes</>}

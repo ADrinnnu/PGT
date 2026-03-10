@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Menu, BarChart3, Map, Users, Navigation, Truck, 
-  CalendarClock, FileText, Settings, ChevronRight, Bell, LogOut, Wallet, Building2
+  CalendarClock, FileText, Settings, ChevronRight, Bell, LogOut, Wallet, Building2, Video
 } from 'lucide-react';
 
 const MainLayout = () => {
@@ -39,6 +39,7 @@ const MainLayout = () => {
 
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto custom-scrollbar">
           <NavItem to="/dashboard" icon={<BarChart3 />} label="Dashboard" isOpen={isSidebarOpen} active={location.pathname === '/dashboard'} />
+          <NavItem to="/cctv" icon={<Video />} label="CCTV" isOpen={isSidebarOpen} active={location.pathname === '/cctv'} />
           <NavItem to="/live-map" icon={<Map />} label="Live Map" isOpen={isSidebarOpen} active={location.pathname === '/live-map'} />
           <NavItem to="/schedule" icon={<CalendarClock />} label="Dispatch" isOpen={isSidebarOpen} active={location.pathname === '/schedule'} />
           

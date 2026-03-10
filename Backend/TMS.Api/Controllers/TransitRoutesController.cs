@@ -49,17 +49,29 @@ namespace TMS.Api.Controllers
         }
         
         [HttpDelete("{id}")]
-public async Task<IActionResult> DeleteRoute(int id)
-{
-    var route = await _context.TransitRoutes.FindAsync(id);
-    if (route == null) return NotFound();
+        public async Task<IActionResult> DeleteRoute(int id)
+        {
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            var companyIdString = User.FindFirst("companyId")?.Value;
 
-    _context.TransitRoutes.Remove(route);
-    await _context.SaveChangesAsync();
+            var route = await _context.TransitRoutes.FindAsync(id);
+            if (route == null) return NotFound();
 
-    return NoContent();
-}
+            if (userRole != "HeadAdmin")
+            {
+                if (int.TryParse(companyIdString, out int companyId))
+                {
+                    if (route.CompanyId != companyId) return Forbid();
+                }
+                else return Unauthorized();
+            }
 
+            _context.TransitRoutes.Remove(route);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+        
         [HttpPost]
         public async Task<IActionResult> CreateTransitRoute([FromBody] CreateTransitRouteRequest request)
         {

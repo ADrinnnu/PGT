@@ -14,6 +14,7 @@ import Transactions from './pages/Transactions';
 import Login from './pages/Login';
 import ProtectedRoute from './routes/ProtectedRoute';
 import Companies from './pages/Companies';
+import CCTV from './pages/CCTV';
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/companies" element={<Companies />} />
+            <Route path="/cctv" element={<CCTV />} />
           </Route>
         </Route>
       </Routes>

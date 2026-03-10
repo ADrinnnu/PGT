@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Plus, Clock, Banknote, Building, AlertCircle, CheckCircle2, Route as RouteIcon, Undo, X, Ruler } from 'lucide-react';
+import { MapPin, Plus, Clock, Banknote, Trash2, Edit, Building, AlertCircle, CheckCircle2, Route as RouteIcon, Undo, X, Ruler } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -124,15 +124,19 @@ const RoutesPage = () => {
 
     try {
       const token = localStorage.getItem('tms_token');
+      
       const payload = { 
-        ...formData, 
+        origin: formData.origin,
+        destination: formData.destination,
         estimatedMinutes: parseInt(formData.estimatedMinutes, 10),
         baseFare: parseFloat(formData.baseFare),
         distanceKm: parseFloat(formData.distanceKm),
         routeCoordinates: JSON.stringify(routePath) 
       };
       
-      if (isHeadAdmin) payload.companyId = parseInt(formData.companyId, 10);
+      if (isHeadAdmin && formData.companyId) {
+          payload.companyId = parseInt(formData.companyId, 10);
+      }
 
       const response = await fetch(`${API_URL}/api/transitroutes`, {
         method: 'POST',
@@ -140,7 +144,11 @@ const RoutesPage = () => {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error("Failed to save.");
+      if (!response.ok) {
+          const errText = await response.text();
+          console.error("C# Rejection Details:", errText);
+          throw new Error("Failed to save. Check console for exact C# error.");
+      }
 
       setStatus({ type: 'success', message: 'Route configured successfully!' });
       setFormData({ origin: '', destination: '', estimatedMinutes: '', baseFare: '', companyId: '', distanceKm: 0, pricePerKm: 4 });
@@ -158,6 +166,26 @@ const RoutesPage = () => {
   const getSavedCoordinates = (jsonString) => {
     try { return JSON.parse(jsonString || "[]"); } 
     catch { return []; }
+  };
+
+  const handleDelete = async (id, e) => {
+    e.stopPropagation(); 
+    if (window.confirm("Are you sure you want to delete this route?")) {
+      try {
+        const token = localStorage.getItem('tms_token');
+        const response = await fetch(`${API_URL}/api/transitroutes/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Failed to delete route');
+
+        setRoutes(routes.filter(r => r.id !== id));
+      } catch (error) {
+        console.error("Error deleting route:", error);
+        alert("Failed to delete route.");
+      }
+    }
   };
 
   return (
@@ -268,6 +296,7 @@ const RoutesPage = () => {
                 <th className="p-4 font-bold">DISTANCE</th>
                 <th className="p-4 font-bold">FARE</th>
                 {isHeadAdmin && <th className="p-4 font-bold">COMPANY</th>}
+                <th className="p-4 font-bold text-right">ACTIONS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -285,6 +314,16 @@ const RoutesPage = () => {
                   <td className="p-4 text-slate-600 font-medium">{route.distanceKm || "0"} km</td>
                   <td className="p-4 text-emerald-600 font-bold">₱ {route.baseFare.toFixed(2)}</td>
                   {isHeadAdmin && <td className="p-4 text-slate-600 font-medium">#{route.companyId}</td>}
+                  <td className="p-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                       <button onClick={(e) => handleDelete(route.id, e)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
+                         <Trash2 size={18} />
+                       </button>
+                       <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors">
+                         <Edit size={18} />
+                       </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

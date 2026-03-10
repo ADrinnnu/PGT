@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Plus, Map, User as UserIcon, Truck, Clock, Building, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Calendar, Plus, Map, User as UserIcon, Truck, Clock, Building, AlertCircle, CheckCircle2, Play, Trash2 } from 'lucide-react';
 
 const API_URL = 'http://localhost:5072';
 
@@ -63,14 +63,16 @@ const Schedule = () => {
 
     try {
       const token = localStorage.getItem('tms_token');
+      const selectedRoute = routes.find(r => r.id === parseInt(formData.routeId));
+      
       const payload = {
-        routeId: parseInt(formData.routeId),
+        routeName: selectedRoute ? `${selectedRoute.origin} → ${selectedRoute.destination}` : '',
         driverId: parseInt(formData.driverId),
         vehicleId: parseInt(formData.vehicleId),
         departureTime: new Date(formData.departureTime).toISOString(),
       };
 
-      if (isHeadAdmin) {
+      if (isHeadAdmin && formData.companyId) {
         payload.companyId = parseInt(formData.companyId);
       }
 
@@ -101,14 +103,24 @@ const Schedule = () => {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (window.confirm("Delete this dispatch?")) {
+      try {
+        const token = localStorage.getItem('tms_token');
+        await fetch(`${API_URL}/api/dispatch/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setDispatches(dispatches.filter(d => d.id !== id));
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  };
+
   const formatDate = (dateString) => {
     const options = { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
     return new Date(dateString).toLocaleDateString('en-US', options);
-  };
-
-  const getRouteName = (id) => {
-    const route = routes.find(r => r.id === id);
-    return route ? `${route.origin} → ${route.destination}` : `Route ID: ${id}`;
   };
 
   const getDriverName = (id) => {
@@ -119,6 +131,19 @@ const Schedule = () => {
   const getVehiclePlate = (id) => {
     const v = vehicles.find(v => v.id === id);
     return v ? `${v.plateNumber} (${v.model})` : `Vehicle ID: ${id}`;
+  };
+
+  const handleStartTrip = (dispatch) => {
+    const activeTrip = {
+      dispatchId: dispatch.id,
+      route: dispatch.routeName,
+      driver: getDriverName(dispatch.driverId),
+      vehicle: getVehiclePlate(dispatch.vehicleId),
+      status: 'In Transit'
+    };
+
+    localStorage.setItem('tms_active_trip', JSON.stringify(activeTrip));
+    window.location.href = '/live-map'; 
   };
 
   return (
@@ -229,15 +254,15 @@ const Schedule = () => {
                 <th className="p-4 font-bold">ROUTE</th>
                 <th className="p-4 font-bold">DRIVER & VEHICLE</th>
                 <th className="p-4 font-bold">DEPARTURE TIME</th>
-                <th className="p-4 font-bold">STATUS</th>
+                <th className="p-4 font-bold text-right">ACTIONS</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {dispatches.map((dispatch) => (
                 <tr key={dispatch.id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-4 font-bold text-slate-800">
-                    <div>{getRouteName(dispatch.routeId)}</div>
-                    <div className="text-xs text-slate-400 font-normal mt-0.5">Route ID: {dispatch.routeId}</div>
+                    <div>{dispatch.routeName || 'Broken Route (Delete Me)'}</div>
+                    <div className="text-xs text-slate-400 font-normal mt-0.5">Assigned Route</div>
                   </td>
                   <td className="p-4">
                     <div className="font-bold text-slate-700">{getDriverName(dispatch.driverId)}</div>
@@ -249,10 +274,22 @@ const Schedule = () => {
                       {formatDate(dispatch.departureTime)}
                     </div>
                   </td>
-                  <td className="p-4">
-                    <span className="px-3 py-1 bg-blue-50 text-blue-700 font-bold text-xs rounded-full">
-                      {dispatch.status}
-                    </span>
+                  <td className="p-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => handleDelete(dispatch.id)}
+                        className="p-2 bg-red-50 hover:bg-red-600 text-red-600 hover:text-white rounded-lg transition-colors"
+                        title="Delete Dispatch"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleStartTrip(dispatch)}
+                        className="px-4 py-2 bg-emerald-100 hover:bg-emerald-600 text-emerald-700 hover:text-white rounded-lg font-bold transition-colors inline-flex items-center gap-2"
+                      >
+                        <Play size={16} fill="currentColor" /> Start Trip
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

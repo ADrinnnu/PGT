@@ -13,5 +13,6 @@ namespace TMS.Domain.Entities
         public decimal RemainingBalance { get; set; }
         public string Status { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public int CompanyId { get; set; }
     }
 }
