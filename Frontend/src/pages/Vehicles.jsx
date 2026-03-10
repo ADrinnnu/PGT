@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Truck, Hash, Users, Activity, Building, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Plus, Truck, Hash, Users, Activity, Building, AlertCircle, CheckCircle2, Trash2, Edit, Filter } from 'lucide-react';
 import api from '../api/axios';
 
 const Vehicles = () => {
@@ -8,6 +8,10 @@ const Vehicles = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
+  const [editingId, setEditingId] = useState(null);
+
+  // Filter state
+  const [filterCompany, setFilterCompany] = useState('All');
 
   const userStr = localStorage.getItem('tms_user');
   const user = userStr ? JSON.parse(userStr) : null;
@@ -40,6 +44,25 @@ const Vehicles = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handleUpdate = (vehicle) => {
+    setEditingId(vehicle.id);
+    setFormData({
+      plateNumber: vehicle.plateNumber,
+      model: vehicle.model,
+      capacity: vehicle.capacity,
+      status: vehicle.status,
+      companyId: vehicle.companyId || ''
+    });
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const resetForm = () => {
+    setFormData({ plateNumber: '', model: '', capacity: '', status: 'Active', companyId: '' });
+    setEditingId(null);
+    setShowForm(false);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -57,23 +80,50 @@ const Vehicles = () => {
         payload.companyId = parseInt(formData.companyId, 10);
       }
 
-      await api.post('/vehicles', payload);
+      if (editingId) {
+        await api.put(`/vehicles/${editingId}`, payload);
+        setStatus({ type: 'success', message: 'Vehicle updated successfully!' });
+      } else {
+        await api.post('/vehicles', payload);
+        setStatus({ type: 'success', message: 'Vehicle added successfully!' });
+      }
 
-      setStatus({ type: 'success', message: 'Vehicle added successfully!' });
-      setFormData({ plateNumber: '', model: '', capacity: '', status: 'Active', companyId: '' });
+      resetForm();
       fetchVehicles();
       
       setTimeout(() => {
-        setShowForm(false);
         setStatus({ type: '', message: '' });
       }, 2000);
 
     } catch (err) {
-      setStatus({ type: 'error', message: err?.response?.data?.message || 'Failed to add vehicle' });
+      setStatus({ type: 'error', message: err?.response?.data?.message || 'Failed to save vehicle' });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this vehicle? This cannot be undone.")) {
+      return;
+    }
+
+    try {
+      await api.delete(`/vehicles/${id}`);
+      setStatus({ type: 'success', message: 'Vehicle deleted successfully!' });
+      fetchVehicles(); 
+      setTimeout(() => setStatus({ type: '', message: '' }), 2000);
+    } catch (err) {
+      setStatus({ type: 'error', message: err?.response?.data?.message || 'Failed to delete vehicle' });
+    }
+  };
+
+  // Generate unique companies for the dropdown
+  const uniqueCompanies = ['All', ...new Set(vehicles.map(v => v.companyName).filter(Boolean))];
+
+  // Filter the vehicles list
+  const filteredVehicles = isHeadAdmin && filterCompany !== 'All' 
+    ? vehicles.filter(v => v.companyName === filterCompany)
+    : vehicles;
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-fade-in-up">
@@ -83,7 +133,10 @@ const Vehicles = () => {
           <p className="text-slate-500 mt-2">Register and monitor your transit vehicles.</p>
         </div>
         <button 
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            if (showForm) resetForm();
+            else setShowForm(true);
+          }}
           className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg transition-all flex items-center gap-2"
         >
           <Plus size={20} /> {showForm ? 'Cancel' : 'Add New Vehicle'}
@@ -92,7 +145,9 @@ const Vehicles = () => {
 
       {showForm && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8 animate-fade-in-up">
-          <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-6">Vehicle Registration</h2>
+          <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-6">
+            {editingId ? 'Edit Vehicle Details' : 'Vehicle Registration'}
+          </h2>
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -153,18 +208,54 @@ const Vehicles = () => {
 
             <div className="flex justify-end">
               <button type="submit" disabled={isSubmitting} className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg transition-all disabled:opacity-50">
-                {isSubmitting ? 'Saving...' : 'Register Vehicle'}
+                {isSubmitting ? 'Saving...' : editingId ? 'Update Vehicle' : 'Register Vehicle'}
               </button>
             </div>
           </form>
         </div>
       )}
 
+      {status.message && !showForm && (
+        <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 font-medium ${status.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+          {status.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+          {status.message}
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-bold text-slate-800">Registered Vehicles</h2>
+          <span className="text-sm text-slate-500 bg-slate-200 px-3 py-1 rounded-full font-bold">
+            {filteredVehicles.length} {filteredVehicles.length === 1 ? 'vehicle' : 'vehicles'}
+          </span>
+        </div>
+
+        {/* Head Admin Filter Dropdown */}
+        {isHeadAdmin && vehicles.length > 0 && (
+          <div className="relative flex items-center">
+            <Filter className="absolute left-3 text-emerald-600 pointer-events-none" size={16} />
+            <select
+              value={filterCompany}
+              onChange={(e) => setFilterCompany(e.target.value)}
+              className="pl-10 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-bold text-slate-700 shadow-sm appearance-none cursor-pointer"
+            >
+              {uniqueCompanies.map((company) => (
+                <option key={company} value={company}>
+                  {company === 'All' ? 'View All Companies' : company}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         {isLoading ? (
           <div className="p-12 text-center text-slate-500 font-medium">Loading fleet data...</div>
         ) : vehicles.length === 0 ? (
           <div className="p-12 text-center text-slate-500 font-medium">No vehicles found. Add your first vehicle above.</div>
+        ) : filteredVehicles.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 font-medium">No vehicles found for this company.</div>
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
@@ -172,11 +263,12 @@ const Vehicles = () => {
                 <th className="p-4 font-bold">VEHICLE INFO</th>
                 <th className="p-4 font-bold">CAPACITY</th>
                 <th className="p-4 font-bold">STATUS</th>
-                {isHeadAdmin && <th className="p-4 font-bold">COMPANY ID</th>}
+                {isHeadAdmin && <th className="p-4 font-bold">COMPANY</th>}
+                <th className="p-4 font-bold text-right">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {vehicles.map((vehicle) => (
+              {filteredVehicles.map((vehicle) => (
                 <tr key={vehicle.id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-4 flex items-center gap-4">
                     <div className="h-12 w-12 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center">
@@ -202,7 +294,23 @@ const Vehicles = () => {
                       {vehicle.status}
                     </span>
                   </td>
-                  {isHeadAdmin && <td className="p-4 text-slate-600 font-medium">#{vehicle.companyId}</td>}
+                  {isHeadAdmin && <td className="p-4 text-emerald-700 font-bold bg-emerald-50/50">{vehicle.companyName}</td>}
+                  <td className="p-4 text-right">
+                    <button 
+                      onClick={() => handleUpdate(vehicle)}
+                      className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors inline-flex items-center justify-center mr-2"
+                      title="Edit Vehicle"
+                    >
+                      <Edit size={20} />
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(vehicle.id)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors inline-flex items-center justify-center"
+                      title="Delete Vehicle"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

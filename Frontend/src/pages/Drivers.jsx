@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, User, FileText, Phone, Activity, Building, AlertCircle, CheckCircle2, Trash2, Edit } from 'lucide-react';
+import { Plus, User, FileText, Phone, Activity, Building, AlertCircle, CheckCircle2, Trash2, Edit, Filter } from 'lucide-react';
 import api from '../api/axios';
 
 const Drivers = () => {
@@ -9,6 +9,9 @@ const Drivers = () => {
   const [showForm, setShowForm] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [editingId, setEditingId] = useState(null);
+  
+  // NEW: State to hold the currently selected company filter
+  const [filterCompany, setFilterCompany] = useState('All');
 
   const userStr = localStorage.getItem('tms_user');
   const user = userStr ? JSON.parse(userStr) : null;
@@ -116,6 +119,14 @@ const Drivers = () => {
       setStatus({ type: 'error', message: err?.response?.data?.message || 'Failed to delete driver' });
     }
   };
+
+  // NEW: Generate a unique list of companies from the current drivers array
+  const uniqueCompanies = ['All', ...new Set(drivers.map(d => d.companyName).filter(Boolean))];
+
+  // NEW: Filter the drivers list based on the dropdown selection
+  const filteredDrivers = isHeadAdmin && filterCompany !== 'All' 
+    ? drivers.filter(d => d.companyName === filterCompany)
+    : drivers;
 
   return (
     <div className="p-8 max-w-7xl mx-auto animate-fade-in-up">
@@ -225,9 +236,31 @@ const Drivers = () => {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-slate-800">Registered Drivers</h2>
-        <span className="text-sm text-slate-500">{drivers.length} {drivers.length === 1 ? 'driver' : 'drivers'}</span>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-bold text-slate-800">Registered Drivers</h2>
+          <span className="text-sm text-slate-500 bg-slate-200 px-3 py-1 rounded-full font-bold">
+            {filteredDrivers.length} {filteredDrivers.length === 1 ? 'driver' : 'drivers'}
+          </span>
+        </div>
+
+        {/* NEW: Dynamic Company Filter Dropdown */}
+        {isHeadAdmin && drivers.length > 0 && (
+          <div className="relative flex items-center">
+            <Filter className="absolute left-3 text-emerald-600 pointer-events-none" size={16} />
+            <select
+              value={filterCompany}
+              onChange={(e) => setFilterCompany(e.target.value)}
+              className="pl-10 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-bold text-slate-700 shadow-sm appearance-none cursor-pointer"
+            >
+              {uniqueCompanies.map((company) => (
+                <option key={company} value={company}>
+                  {company === 'All' ? 'View All Companies' : company}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -235,6 +268,8 @@ const Drivers = () => {
           <div className="p-12 text-center text-slate-500 font-medium">Loading personnel data...</div>
         ) : drivers.length === 0 ? (
           <div className="p-12 text-center text-slate-500 font-medium">No drivers found. Add your first driver above.</div>
+        ) : filteredDrivers.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 font-medium">No drivers found for this company.</div>
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
@@ -247,7 +282,8 @@ const Drivers = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {drivers.map((driver) => (
+              {/* NEW: Maps over the filtered array instead of the raw data */}
+              {filteredDrivers.map((driver) => (
                 <tr key={driver.id} className="hover:bg-slate-50 transition-colors">
                   <td className="p-4 flex items-center gap-4">
                     <div className="h-12 w-12 bg-slate-100 text-slate-600 rounded-xl flex items-center justify-center">

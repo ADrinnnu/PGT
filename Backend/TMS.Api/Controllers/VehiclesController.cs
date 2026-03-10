@@ -24,11 +24,23 @@ namespace TMS.Api.Controllers
         [HttpGet]
         public async Task<IActionResult> GetVehicles()
         {
-            // NEW: Safely checks multiple ways the Role and CompanyId might be capitalized in the token
             var role = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value ?? User.FindFirst("Role")?.Value;
             var companyIdString = User.FindFirst("companyId")?.Value ?? User.FindFirst("CompanyId")?.Value;
 
-            var query = _context.Vehicles.AsQueryable();
+            // THIS IS THE FIX: We JOIN the Companies table so React knows the actual Company Name!
+            var query = from v in _context.Vehicles
+                        join c in _context.Companies on v.CompanyId equals c.Id into companyGroup
+                        from c in companyGroup.DefaultIfEmpty()
+                        select new
+                        {
+                            v.Id,
+                            v.PlateNumber,
+                            v.Model,
+                            v.Capacity,
+                            v.Status,
+                            v.CompanyId,
+                            CompanyName = c != null ? c.Name : "Unknown Company"
+                        };
 
             if (role != "HeadAdmin" && int.TryParse(companyIdString, out int companyId))
             {
@@ -42,7 +54,6 @@ namespace TMS.Api.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateVehicle([FromBody] CreateVehicleRequest request)
         {
-            // NEW: Safely checks multiple ways the Role and CompanyId might be capitalized in the token
             var role = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value ?? User.FindFirst("Role")?.Value;
             var companyIdString = User.FindFirst("companyId")?.Value ?? User.FindFirst("CompanyId")?.Value;
 
@@ -54,10 +65,7 @@ namespace TMS.Api.Controllers
                 {
                     companyIdToAssign = tokenCompanyId;
                 }
-                else
-                {
-                    return Unauthorized(new { message = "Invalid company ID. You are not recognized as a HeadAdmin." });
-                }
+                else return Unauthorized(new { message = "Invalid company ID." });
             }
 
             var vehicle = new Vehicle
@@ -73,6 +81,63 @@ namespace TMS.Api.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Vehicle created successfully." });
+        }
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateVehicle(int id, [FromBody] CreateVehicleRequest request)
+        {
+            var role = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value ?? User.FindFirst("Role")?.Value;
+            var companyIdString = User.FindFirst("companyId")?.Value ?? User.FindFirst("CompanyId")?.Value;
+
+            var vehicle = await _context.Vehicles.FindAsync(id);
+            if (vehicle == null) return NotFound(new { message = "Vehicle not found." });
+
+            if (role != "HeadAdmin")
+            {
+                if (int.TryParse(companyIdString, out int companyId))
+                {
+                    if (vehicle.CompanyId != companyId) return Forbid();
+                    request.CompanyId = companyId; 
+                }
+                else return Unauthorized();
+            }
+
+            vehicle.PlateNumber = request.PlateNumber;
+            vehicle.Model = request.Model;
+            vehicle.Capacity = request.Capacity;
+            vehicle.Status = request.Status ?? "Active";
+
+            if (role == "HeadAdmin")
+            {
+                vehicle.CompanyId = request.CompanyId;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Vehicle updated successfully." });
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteVehicle(int id)
+        {
+            var role = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value ?? User.FindFirst("Role")?.Value;
+            var companyIdString = User.FindFirst("companyId")?.Value ?? User.FindFirst("CompanyId")?.Value;
+
+            var vehicle = await _context.Vehicles.FindAsync(id);
+            if (vehicle == null) return NotFound(new { message = "Vehicle not found." });
+
+            if (role != "HeadAdmin")
+            {
+                if (int.TryParse(companyIdString, out int companyId))
+                {
+                    if (vehicle.CompanyId != companyId) return Forbid();
+                }
+                else return Unauthorized();
+            }
+
+            _context.Vehicles.Remove(vehicle);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Vehicle deleted successfully." });
         }
     }
 

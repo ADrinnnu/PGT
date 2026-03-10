@@ -5,6 +5,7 @@ using TMS.Infrastructure.Data;
 using System.Threading.Tasks;
 using System.Linq;
 using System;
+using System.Security.Claims;
 
 namespace TMS.Api.Controllers
 {
@@ -23,15 +24,29 @@ namespace TMS.Api.Controllers
         [HttpGet("feeds")]
         public async Task<IActionResult> GetCameraFeeds()
         {
-            var dispatches = await _context.Dispatches.ToListAsync();
+            var role = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value ?? User.FindFirst("Role")?.Value;
+            var companyIdString = User.FindFirst("companyId")?.Value ?? User.FindFirst("CompanyId")?.Value;
+
+            // Base query for active dispatches
+            var query = _context.Dispatches.AsQueryable();
+
+            // Filter if Cooperative Admin
+            if (role != "HeadAdmin" && int.TryParse(companyIdString, out int companyId))
+            {
+                query = query.Where(d => d.CompanyId == companyId);
+            }
+
+            var dispatches = await query.ToListAsync();
             var vehicles = await _context.Vehicles.ToListAsync();
             var drivers = await _context.Drivers.ToListAsync();
+            var companies = await _context.Companies.ToListAsync(); // Need this to get company names!
 
             var random = new Random();
 
             var feeds = dispatches.Select(d => {
                 var vehicle = vehicles.FirstOrDefault(v => v.Id == d.VehicleId);
                 var driver = drivers.FirstOrDefault(dr => dr.Id == d.DriverId);
+                var company = companies.FirstOrDefault(c => c.Id == d.CompanyId);
 
                 // Mocking live telemetry data until real hardware sensors are installed
                 bool isOnline = random.Next(100) > 15; // 85% chance the camera is online
@@ -45,7 +60,8 @@ namespace TMS.Api.Controllers
                     status = isOnline ? "Online" : "Offline",
                     speed = $"{speed} km/h",
                     passengers = passengers,
-                    driver = driver != null ? $"{driver.FirstName} {driver.LastName}" : "Unassigned"
+                    driver = driver != null ? $"{driver.FirstName} {driver.LastName}" : "Unassigned",
+                    companyName = company != null ? company.Name : "Unknown Company" 
                 };
             }).ToList();
 
