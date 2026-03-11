@@ -20,33 +20,43 @@ namespace TMS.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetTransitRoutes()
-        {
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+public async Task<IActionResult> GetTransitRoutes()
+{
+    var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value;
+    var companyIdString = User.FindFirst("companyId")?.Value;
 
-            if (userRole == "HeadAdmin")
-            {
-                var allRoutes = await _context.TransitRoutes.ToListAsync();
-                return Ok(allRoutes);
-            }
-            else if (userRole == "CompanyAdmin")
-            {
-                var companyIdString = User.FindFirst("companyId")?.Value;
+    // Join with Companies to get the Name for the frontend filter
+    var query = from r in _context.TransitRoutes
+                join c in _context.Companies on r.CompanyId equals c.Id into companyGroup
+                from c in companyGroup.DefaultIfEmpty()
+                select new
+                {
+                    r.Id,
+                    r.Origin,
+                    r.Destination,
+                    r.EstimatedMinutes,
+                    r.BaseFare,
+                    r.DistanceKm,
+                    r.RouteCoordinates,
+                    r.CompanyId,
+                    CompanyName = c != null ? c.Name : "Unknown Company"
+                };
 
-                if (string.IsNullOrEmpty(companyIdString)) 
-                    return Unauthorized(new { message = "Company ID missing from token." });
+    if (userRole == "HeadAdmin")
+    {
+        return Ok(await query.ToListAsync());
+    }
+    else if (userRole == "CompanyAdmin")
+    {
+        if (string.IsNullOrEmpty(companyIdString)) 
+            return Unauthorized(new { message = "Company ID missing from token." });
 
-                int companyId = int.Parse(companyIdString);
+        int companyId = int.Parse(companyIdString);
+        return Ok(await query.Where(r => r.CompanyId == companyId).ToListAsync());
+    }
 
-                var companyRoutes = await _context.TransitRoutes
-                    .Where(r => r.CompanyId == companyId)
-                    .ToListAsync();
-
-                return Ok(companyRoutes);
-            }
-
-            return Forbid();
-        }
+    return Forbid();
+}
         
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRoute(int id)

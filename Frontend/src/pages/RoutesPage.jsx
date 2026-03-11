@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Plus, Clock, Banknote, Trash2, Edit, Building, AlertCircle, CheckCircle2, Route as RouteIcon, Undo, X, Ruler } from 'lucide-react';
+import { MapPin, Plus, Clock, Banknote, Trash2, Edit, Building, AlertCircle, CheckCircle2, Route as RouteIcon, Undo, X, Ruler, Filter } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Polyline, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -26,7 +26,7 @@ const RoutesPage = () => {
   const [showForm, setShowForm] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
   const [viewRoute, setViewRoute] = useState(null); 
-  
+  const [filterCompany, setFilterCompany] = useState('All');
   const [waypoints, setWaypoints] = useState([]); 
   const [routePath, setRoutePath] = useState([]); 
   const [isCalculating, setIsCalculating] = useState(false);
@@ -90,11 +90,8 @@ const RoutesPage = () => {
       if (data.code === 'Ok') {
         const roadCoordinates = data.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
         setRoutePath(roadCoordinates);
-        
         const minutes = Math.round(data.routes[0].duration / 60);
-        
         const totalKm = (data.routes[0].distance / 1000).toFixed(1);
-        
         const autoFare = (totalKm * formData.pricePerKm).toFixed(2);
 
         setFormData(prev => ({ 
@@ -124,7 +121,6 @@ const RoutesPage = () => {
 
     try {
       const token = localStorage.getItem('tms_token');
-      
       const payload = { 
         origin: formData.origin,
         destination: formData.destination,
@@ -144,24 +140,24 @@ const RoutesPage = () => {
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-          const errText = await response.text();
-          console.error("C# Rejection Details:", errText);
-          throw new Error("Failed to save. Check console for exact C# error.");
-      }
+      if (!response.ok) throw new Error("Failed to save route");
 
       setStatus({ type: 'success', message: 'Route configured successfully!' });
       setFormData({ origin: '', destination: '', estimatedMinutes: '', baseFare: '', companyId: '', distanceKm: 0, pricePerKm: 4 });
       clearMap(); 
       fetchRoutes(); 
       setTimeout(() => { setShowForm(false); setStatus({ type: '', message: '' }); }, 2000);
-
     } catch (err) {
       setStatus({ type: 'error', message: err.message });
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const uniqueCompanies = ['All', ...new Set(routes.map(r => r.companyName).filter(Boolean))];
+  const filteredRoutes = isHeadAdmin && filterCompany !== 'All' 
+    ? routes.filter(r => r.companyName === filterCompany)
+    : routes;
 
   const getSavedCoordinates = (jsonString) => {
     try { return JSON.parse(jsonString || "[]"); } 
@@ -177,12 +173,9 @@ const RoutesPage = () => {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
-
         if (!response.ok) throw new Error('Failed to delete route');
-
         setRoutes(routes.filter(r => r.id !== id));
       } catch (error) {
-        console.error("Error deleting route:", error);
         alert("Failed to delete route.");
       }
     }
@@ -201,93 +194,105 @@ const RoutesPage = () => {
       </div>
 
       {showForm && (
-         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8 animate-fade-in-up">
-         <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-6">Draw Route Path</h2>
-         
-         <div className="mb-8">
-           <div className="flex justify-between items-end mb-3">
-             <p className="text-sm text-slate-500 font-medium">Click Origin, then click Destination to snap to roads.</p>
-             <button type="button" onClick={clearMap} disabled={waypoints.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-50 transition-colors">
-               <Undo size={16} /> Reset Map
-             </button>
-           </div>
-           
-           <div className="h-96 w-full rounded-xl overflow-hidden border-2 border-slate-200 shadow-inner z-0 relative">
-             {isCalculating && <div className="absolute inset-0 bg-white/60 z-[9999] flex items-center justify-center font-bold text-emerald-700 backdrop-blur-sm">Calculating Route & Distance...</div>}
-             <MapContainer center={[15.480, 120.597]} zoom={11} className="h-full w-full" style={{ zIndex: 1 }}>
-               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-               <MapClickHandler onMapClick={handleMapClick} />
-               {waypoints.map((pos, idx) => <Marker key={idx} position={pos} icon={customIcon} />)}
-               {routePath.length > 0 && <Polyline positions={routePath} color="#059669" weight={6} opacity={0.8} />}
-             </MapContainer>
-           </div>
-         </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8 animate-fade-in-up">
+          <h2 className="text-lg font-bold text-slate-800 border-b border-slate-100 pb-2 mb-6">Draw Route Path</h2>
+          <div className="mb-8">
+            <div className="flex justify-between items-end mb-3">
+              <p className="text-sm text-slate-500 font-medium">Click Origin, then click Destination to snap to roads.</p>
+              <button type="button" onClick={clearMap} disabled={waypoints.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-50 transition-colors">
+                <Undo size={16} /> Reset Map
+              </button>
+            </div>
+            <div className="h-96 w-full rounded-xl overflow-hidden border-2 border-slate-200 shadow-inner z-0 relative">
+              {isCalculating && <div className="absolute inset-0 bg-white/60 z-[9999] flex items-center justify-center font-bold text-emerald-700 backdrop-blur-sm">Calculating Route & Distance...</div>}
+              <MapContainer center={[15.480, 120.597]} zoom={11} className="h-full w-full" style={{ zIndex: 1 }}>
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <MapClickHandler onMapClick={handleMapClick} />
+                {waypoints.map((pos, idx) => <Marker key={idx} position={pos} icon={customIcon} />)}
+                {routePath.length > 0 && <Polyline positions={routePath} color="#059669" weight={6} opacity={0.8} />}
+              </MapContainer>
+            </div>
+          </div>
 
-         <form onSubmit={handleSubmit} className="space-y-6">
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-             <div className="space-y-2">
-               <label className="text-sm font-bold text-slate-700">Origin Terminal Name</label>
-               <div className="relative">
-                 <MapPin className="absolute left-3 top-3.5 text-slate-400" size={20} />
-                 <input type="text" name="origin" required placeholder="e.g. Paniqui" value={formData.origin} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
-               </div>
-             </div>
-             <div className="space-y-2">
-               <label className="text-sm font-bold text-slate-700">Destination Terminal Name</label>
-               <div className="relative">
-                 <MapPin className="absolute left-3 top-3.5 text-slate-400" size={20} />
-                 <input type="text" name="destination" required placeholder="e.g. Tarlac City" value={formData.destination} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
-               </div>
-             </div>
-             
-             {isHeadAdmin && (
-               <div className="space-y-2">
-                 <label className="text-sm font-bold text-slate-700">Assign to Company (ID)</label>
-                 <div className="relative">
-                   <Building className="absolute left-3 top-3.5 text-slate-400" size={20} />
-                   <input type="number" name="companyId" required value={formData.companyId} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
-                 </div>
-               </div>
-             )}
-
-             <div className="space-y-2">
-               <label className="text-sm font-bold text-slate-700">Total Distance (KM)</label>
-               <div className="relative">
-                 <Ruler className="absolute left-3 top-3.5 text-blue-500" size={20} />
-                 <input type="text" readOnly value={`${formData.distanceKm} km`} className="w-full pl-10 pr-4 py-3 bg-blue-50 border border-blue-200 text-blue-800 font-bold rounded-xl outline-none" />
-               </div>
-             </div>
-
-             <div className="space-y-2">
-               <label className="text-sm font-bold text-slate-700">Price per KM (₱)</label>
-               <div className="relative">
-                 <Banknote className="absolute left-3 top-3.5 text-slate-400" size={20} />
-                 <input type="number" step="0.50" min="1" required value={formData.pricePerKm} onChange={handlePriceChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none hover:border-emerald-400 transition-colors" />
-               </div>
-             </div>
-
-             <div className="space-y-2">
-               <label className="text-sm font-bold text-emerald-700">Calculated Base Fare</label>
-               <div className="relative">
-                 <Banknote className="absolute left-3 top-3.5 text-emerald-500" size={20} />
-                 <input type="number" name="baseFare" step="0.01" required value={formData.baseFare} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
-               </div>
-             </div>
-
-           </div>
-           {status.message && <div className={`p-4 rounded-xl flex items-center gap-3 font-medium ${status.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>{status.message}</div>}
-           <div className="flex justify-end">
-             <button type="submit" disabled={isSubmitting || routePath.length === 0} className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg transition-all disabled:opacity-50">Save Calculated Route</button>
-           </div>
-         </form>
-       </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Origin Terminal Name</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3.5 text-slate-400" size={20} />
+                  <input type="text" name="origin" required placeholder="e.g. Paniqui" value={formData.origin} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Destination Terminal Name</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3.5 text-slate-400" size={20} />
+                  <input type="text" name="destination" required placeholder="e.g. Tarlac City" value={formData.destination} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
+                </div>
+              </div>
+              {isHeadAdmin && (
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-slate-700">Assign to Company (ID)</label>
+                  <div className="relative">
+                    <Building className="absolute left-3 top-3.5 text-slate-400" size={20} />
+                    <input type="number" name="companyId" required value={formData.companyId} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
+                  </div>
+                </div>
+              )}
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Total Distance (KM)</label>
+                <div className="relative">
+                  <Ruler className="absolute left-3 top-3.5 text-blue-500" size={20} />
+                  <input type="text" readOnly value={`${formData.distanceKm} km`} className="w-full pl-10 pr-4 py-3 bg-blue-50 border border-blue-200 text-blue-800 font-bold rounded-xl outline-none" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-slate-700">Price per KM (₱)</label>
+                <div className="relative">
+                  <Banknote className="absolute left-3 top-3.5 text-slate-400" size={20} />
+                  <input type="number" step="0.50" min="1" required value={formData.pricePerKm} onChange={handlePriceChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-emerald-700">Calculated Base Fare</label>
+                <div className="relative">
+                  <Banknote className="absolute left-3 top-3.5 text-emerald-500" size={20} />
+                  <input type="number" name="baseFare" step="0.01" required value={formData.baseFare} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
+                </div>
+              </div>
+            </div>
+            {status.message && <div className={`p-4 rounded-xl flex items-center gap-3 font-medium ${status.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>{status.message}</div>}
+            <div className="flex justify-end">
+              <button type="submit" disabled={isSubmitting || routePath.length === 0} className="px-8 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg transition-all disabled:opacity-50">Save Calculated Route</button>
+            </div>
+          </form>
+        </div>
       )}
+
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-bold text-slate-800">Available Routes</h2>
+          <span className="text-sm text-slate-500 bg-slate-200 px-3 py-1 rounded-full font-bold">
+            {filteredRoutes.length} {filteredRoutes.length === 1 ? 'route' : 'routes'}
+          </span>
+        </div>
+        {isHeadAdmin && routes.length > 0 && (
+          <div className="relative flex items-center">
+            <Filter className="absolute left-3 text-emerald-600 pointer-events-none" size={16} />
+            <select value={filterCompany} onChange={(e) => setFilterCompany(e.target.value)} className="pl-10 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-bold text-slate-700 shadow-sm appearance-none cursor-pointer">
+              {uniqueCompanies.map((company) => (
+                <option key={company} value={company}>{company === 'All' ? 'View All Companies' : company}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
         {isLoading ? (
           <div className="p-12 text-center text-slate-500 font-medium">Loading routes...</div>
-        ) : routes.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 font-medium">No routes found. Create one above!</div>
+        ) : filteredRoutes.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 font-medium">No routes match the selection.</div>
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
@@ -300,20 +305,20 @@ const RoutesPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {routes.map((route) => (
-                <tr key={route.id} onClick={() => setViewRoute(route)} className="hover:bg-slate-50 transition-colors cursor-pointer" title="Click to view map">
+              {filteredRoutes.map((route) => (
+                <tr key={route.id} onClick={() => setViewRoute(route)} className="hover:bg-slate-50 transition-colors cursor-pointer">
                   <td className="p-4 font-bold text-slate-800 flex items-center gap-3">
                     <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center">
                       <RouteIcon size={20} />
                     </div>
                     <div>
                       <div>{route.origin} <span className="text-slate-400 mx-2">→</span> {route.destination}</div>
-                      <div className="text-xs text-blue-500 font-medium mt-0.5">Click to view map</div>
+                      <div className="text-xs text-blue-500 font-medium mt-0.5 uppercase tracking-tighter">Click to view map</div>
                     </div>
                   </td>
                   <td className="p-4 text-slate-600 font-medium">{route.distanceKm || "0"} km</td>
                   <td className="p-4 text-emerald-600 font-bold">₱ {route.baseFare.toFixed(2)}</td>
-                  {isHeadAdmin && <td className="p-4 text-slate-600 font-medium">#{route.companyId}</td>}
+                  {isHeadAdmin && <td className="p-4 text-emerald-700 font-bold bg-emerald-50/50 uppercase tracking-tight">{route.companyName}</td>}
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                        <button onClick={(e) => handleDelete(route.id, e)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors">
