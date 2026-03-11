@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Plus, Map, User as UserIcon, Truck, Clock, Building, AlertCircle, CheckCircle2, Play, Trash2 } from 'lucide-react';
 
-const API_URL = 'http://localhost:5072';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5072';
 
 const Schedule = () => {
   const [dispatches, setDispatches] = useState([]);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowUpRight, ArrowDownLeft, Wallet, Search, Smartphone, User } from 'lucide-react';
 
-const API_URL = 'http://localhost:5072';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5072';
 
 const Transactions = () => {
   const [activeTab, setActiveTab] = useState('live');

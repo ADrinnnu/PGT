@@ -22,21 +22,31 @@ namespace TMS.Api.Controllers
             _context = context;
         }
 
-        // 1. GET ALL COMPANIES
         [HttpGet]
         public async Task<IActionResult> GetCompanies()
         {
-            var companies = await _context.Companies.ToListAsync();
+            var companies = await _context.Companies
+                .Select(c => new 
+                {
+                    c.Id,
+                    c.Name,
+                    c.ContactEmail,
+                    AdminEmail = _context.Users
+                        .Where(u => u.CompanyId == c.Id && u.Role == "CompanyAdmin")
+                        .Select(u => u.Email)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
+
             return Ok(companies);
         }
 
-        // 2. CREATE COMPANY
         [HttpPost]
         public async Task<IActionResult> CreateCompany([FromBody] CreateCompanyRequest request)
         {
             try
             {
-                if (_context.Users.Any(u => u.Email == request.AdminEmail))
+                if (await _context.Users.AnyAsync(u => u.Email == request.AdminEmail))
                 {
                     return BadRequest(new { message = "Admin email already exists." });
                 }
@@ -72,7 +82,6 @@ namespace TMS.Api.Controllers
             }
         }
 
-        // 3. UPDATE COMPANY
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateCompany(int id, [FromBody] UpdateCompanyRequest request)
         {
@@ -81,22 +90,35 @@ namespace TMS.Api.Controllers
 
             company.Name = request.CompanyName;
             company.ContactEmail = request.ContactEmail;
-
             _context.Companies.Update(company);
+
+            var adminUser = await _context.Users.FirstOrDefaultAsync(u => u.CompanyId == id && u.Role == "CompanyAdmin");
+            
+            if (adminUser != null && !string.IsNullOrWhiteSpace(request.AdminEmail))
+            {
+                if (adminUser.Email != request.AdminEmail && await _context.Users.AnyAsync(u => u.Email == request.AdminEmail))
+                {
+                    return BadRequest(new { message = "The new login email is already taken by another user." });
+                }
+                
+                adminUser.Email = request.AdminEmail;
+                _context.Users.Update(adminUser);
+            }
+
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Company updated successfully." });
         }
 
-        // 4. DELETE COMPANY
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCompany(int id)
         {
             var company = await _context.Companies.FindAsync(id);
             if (company == null) return NotFound(new { message = "Company not found." });
 
-            // Note: Depending on your database setup, deleting a company 
-            // might cascade and delete its drivers/vehicles/users automatically.
+            var adminUsers = _context.Users.Where(u => u.CompanyId == id);
+            _context.Users.RemoveRange(adminUsers);
+
             _context.Companies.Remove(company);
             await _context.SaveChangesAsync();
 
@@ -117,5 +139,6 @@ namespace TMS.Api.Controllers
     {
         public string CompanyName { get; set; } = string.Empty;
         public string ContactEmail { get; set; } = string.Empty;
+        public string AdminEmail { get; set; } = string.Empty;
     }
 }

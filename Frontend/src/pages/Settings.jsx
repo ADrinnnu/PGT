@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, Lock, Building, Bell, Save, Camera, Eye, EyeOff, LogOut } from 'lucide-react';
 
-const API_URL = 'http://localhost:5072';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5072';
 
 const Settings = () => {
   const navigate = useNavigate();

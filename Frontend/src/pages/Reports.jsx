@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Download, Printer, TrendingUp, Users, Map } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const API_URL = 'http://localhost:5072';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5072';
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState('revenue');

@@ -12,7 +12,7 @@ const customIcon = new L.Icon({
   iconAnchor: [12, 41]
 });
 
-const API_URL = 'http://localhost:5072';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5072';
 
 const MapClickHandler = ({ onMapClick }) => {
   useMapEvents({ click: (e) => onMapClick([e.latlng.lat, e.latlng.lng]) });

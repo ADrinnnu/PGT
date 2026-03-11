@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Video, Camera, AlertCircle, Wifi, WifiOff, Maximize, Users, Gauge, Filter } from 'lucide-react';
 
-const API_URL = 'http://localhost:5072';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5072';
 
 const CCTV = () => {
   const [cameraFeeds, setCameraFeeds] = useState([]);

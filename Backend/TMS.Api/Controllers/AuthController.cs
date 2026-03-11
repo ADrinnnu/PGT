@@ -154,6 +154,31 @@ public class AuthController : ControllerBase
 
         return Ok(new { message = "Password changed successfully." });
     }
+
+    [HttpPut("admin-reset-password/{companyId}")]
+    [Authorize(Roles = "HeadAdmin")]
+    public async Task<IActionResult> AdminResetPassword(int companyId, [FromBody] AdminResetPasswordRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+        {
+            return BadRequest(new { message = "New password must be at least 8 characters long." });
+        }
+
+        var user = await _context.Users
+            .FirstOrDefaultAsync(u => u.CompanyId == companyId && u.Role == "CompanyAdmin");
+
+        if (user == null) 
+        {
+            return NotFound(new { message = "Admin user not found for this company." });
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+
+        _context.Users.Update(user);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { message = "Admin password has been reset successfully." });
+    }
 }
 
 public class LoginRequest
@@ -172,5 +197,10 @@ public class UpdateProfileRequest
 public class ChangePasswordRequest
 {
     public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}
+
+public class AdminResetPasswordRequest
+{
     public string NewPassword { get; set; } = string.Empty;
 }
