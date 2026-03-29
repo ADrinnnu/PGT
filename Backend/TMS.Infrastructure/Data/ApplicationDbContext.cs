@@ -15,5 +15,8 @@ namespace TMS.Infrastructure.Data
         public DbSet<Dispatch> Dispatches { get; set; } 
         public DbSet<TMS.Domain.Entities.CommuterWallet> CommuterWallets { get; set; }
         public DbSet<TMS.Domain.Entities.Transaction> Transactions { get; set; }
+        public DbSet<TMS.Domain.Entities.Wallet> Wallets { get; set; }
+        public DbSet<TMS.Domain.Entities.WalletTransaction> WalletTransactions { get; set; }
+        public DbSet<TMS.Domain.Entities.Ticket> Tickets { get; set; }
     }
 }
