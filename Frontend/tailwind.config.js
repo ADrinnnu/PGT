@@ -6,7 +6,6 @@ export default {
   ],
   theme: {
     extend: {
-      // 👇 ADD THIS SECTION
       fontFamily: {
         sans: ['Poppins', 'sans-serif'],
       },

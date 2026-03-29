@@ -21,12 +21,11 @@ builder.Services.AddScoped<TokenService>();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReactApp", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
-              .AllowAnyHeader()
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowCredentials();
+              .AllowAnyHeader();
     });
 });
 
@@ -50,10 +49,27 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 var app = builder.Build();
 
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseHttpsRedirection();
+
+app.UseCors("AllowAll"); 
+
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+app.MapHub<TrackingHub>("/trackingHub");
+
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     var context = services.GetRequiredService<ApplicationDbContext>();
+    
     context.Database.Migrate();
 
     if (!context.Users.Any())
@@ -64,23 +80,13 @@ using (var scope = app.Services.CreateScope())
             Email = "admin@test.com",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
             Role = "HeadAdmin",
-            Bio = "Initial System Administrator"
+            Bio = "Initial System Administrator",
+            Status = "Active",
+            CompanyId = 0,
+            CreatedDate = DateTime.UtcNow
         });
         context.SaveChanges();
     }
 }
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-app.UseCors("AllowReactApp");
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-app.MapHub<TrackingHub>("/trackingHub");
 
 app.Run();

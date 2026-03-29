@@ -41,14 +41,18 @@ namespace TMS.Api.Controllers
                 else return Unauthorized();
             }
 
-            var revenueData = await query
-                .GroupBy(t => t.Route)
-                .Select(g => new {
-                    name = g.Key,
-                    revenue = g.Sum(t => t.Amount),
-                    trips = g.Count()
-                })
-                .ToListAsync();
+            // Join with Companies to get the CompanyName and group by both Route and Company
+            var revenueData = await (from t in query
+                                     join c in _context.Companies on t.CompanyId equals c.Id into compGroup
+                                     from c in compGroup.DefaultIfEmpty()
+                                     group t by new { t.Route, CompanyName = c != null ? c.Name : "Unknown Company" } into g
+                                     select new
+                                     {
+                                         name = g.Key.Route,
+                                         companyName = g.Key.CompanyName,
+                                         revenue = g.Sum(x => x.Amount),
+                                         trips = g.Count()
+                                     }).ToListAsync();
 
             return Ok(revenueData);
         }
@@ -70,20 +74,23 @@ namespace TMS.Api.Controllers
                 else return Unauthorized();
             }
 
-            var dispatches = await query.OrderByDescending(d => d.DepartureTime).Take(50).ToListAsync();
-            var drivers = await _context.Drivers.ToListAsync();
-            
-            var logs = dispatches.Select(d => {
-                var driver = drivers.FirstOrDefault(dr => dr.Id == d.DriverId);
-                return new {
-                    id = d.Id,
-                    date = d.DepartureTime.ToString("yyyy-MM-dd"),
-                    route = d.RouteName,
-                    driver = driver != null ? $"{driver.FirstName} {driver.LastName}" : "Unknown",
-                    status = d.Status,
-                    amount = "See Transactions"
-                };
-            });
+            // Join with Companies and Drivers to get all necessary names in one efficient query
+            var logs = await (from d in query
+                              join c in _context.Companies on d.CompanyId equals c.Id into compGroup
+                              from c in compGroup.DefaultIfEmpty()
+                              join dr in _context.Drivers on d.DriverId equals dr.Id into driverGroup
+                              from dr in driverGroup.DefaultIfEmpty()
+                              orderby d.DepartureTime descending
+                              select new
+                              {
+                                  id = d.Id,
+                                  date = d.DepartureTime.ToString("yyyy-MM-dd"),
+                                  route = d.RouteName,
+                                  driver = dr != null ? $"{dr.FirstName} {dr.LastName}" : "Unknown",
+                                  status = d.Status,
+                                  amount = "See Transactions",
+                                  companyName = c != null ? c.Name : "Unknown Company"
+                              }).Take(50).ToListAsync();
 
             return Ok(logs);
         }
