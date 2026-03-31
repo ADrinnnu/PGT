@@ -155,7 +155,7 @@ const CCTV = () => {
                     <div className="absolute inset-0 bg-black flex items-center justify-center overflow-hidden">
                       <img
                         // IMPORTANT: Change this URL to the exact IP address shown on your phone app!
-                        src="http://192.168.10.206:8080/video"
+                        src="http://192.168.100.38:8080/video"
                         alt="Live Phone Stream"
                         className="w-full h-full object-cover"
                         crossOrigin="anonymous"
