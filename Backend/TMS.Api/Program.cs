@@ -9,28 +9,37 @@ using BCrypt.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 1. Database Setup
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString));
 });
+
+// 2. Services & Hubs
+builder.Services.AddSignalR(); // <-- Kept only one of these!
+builder.Services.AddHostedService<TMS.Api.Services.MqttIngestService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddSignalR();
     
 builder.Services.AddScoped<TokenService>();
 
+// 3. FIXED CORS POLICY FOR SIGNALR
+// 3. FIXED CORS POLICY FOR SIGNALR
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.AllowAnyOrigin()
+        // ADD 5174 TO THIS LIST!
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:3000") 
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials(); 
     });
 });
 
+// 4. JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]!);
 
@@ -51,6 +60,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 var app = builder.Build();
 
+// 5. Middleware Pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -59,14 +69,16 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors("AllowAll"); 
+// Use the fixed CORS policy
+app.UseCors("AllowReactApp"); 
 
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHub<TrackingHub>("/trackingHub");
+app.MapHub<TrackingHub>("/trackingHub"); // <-- Kept only one of these!
 
+// 6. Database Migrations & Seeding
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
