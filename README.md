@@ -28,21 +28,21 @@ The backend is split into multiple projects (Clean Architecture). All terminal c
 
 1. Navigate to the Backend folder
 
-Bash
+
 cd Backend
 2. Restore NuGet Packages
 
-Bash
+
 dotnet restore
 3. Apply Database Migrations
 This command will build the MySQL database and create all the necessary tables (Employees, Vehicles, Dispatches, etc.):
 
-Bash
+
 dotnet ef database update --project TMS.Infrastructure --startup-project TMS.Api
 4. Run the API
 Navigate into the API project and start the server:
 
-Bash
+
 cd TMS.Api
 dotnet run
 The API will start running (usually on http://localhost:5072 or https://localhost:7053).
@@ -57,11 +57,11 @@ Open a new, separate terminal so your backend can keep running in the background
 
 1. Navigate to the Frontend folder
 
-Bash
+
 cd Frontend
 2. Install Dependencies
 
-Bash
+
 npm install
 3. Environment Variables
 Create a file named .env in the Frontend folder (if it doesn't exist) and link it to your C# API:
@@ -72,7 +72,6 @@ VITE_API_URL=http://localhost:5072
 
 4. Run the React App
 
-Bash
 npm run dev
 Open your browser to http://localhost:5173 to view the application!
 
