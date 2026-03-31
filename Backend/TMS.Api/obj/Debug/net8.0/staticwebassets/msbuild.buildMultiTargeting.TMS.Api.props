@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\TMS.Api.props" />
-</Project>

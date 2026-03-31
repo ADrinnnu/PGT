@@ -1,0 +1,65 @@
+# ==========================================
+# Frontend (React / Node.js)
+# ==========================================
+# Dependencies
+Frontend/node_modules/
+node_modules/
+
+# Production builds
+Frontend/dist/
+Frontend/build/
+dist/
+build/
+
+# Environment variables (NEVER commit these!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# NPM / Yarn logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==========================================
+# Backend (.NET / C#)
+# ==========================================
+# Compiled output and intermediate directories
+[Bb]in/
+[Oo]bj/
+**/bin/
+**/obj/
+
+# Visual Studio / Rider / Editor directories
+.vs/
+.idea/
+.vscode/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+
+# Test results
+TestResults/
+
+# Local configuration files (Optional: uncomment if you want to ignore local DB strings)
+# Backend/**/appsettings.Development.json
+# Backend/**/appsettings.Local.json
+
+# EF Core / SQLite (If you ever use local file databases)
+*.db
+*.db-shm
+*.db-wal
+
+# ==========================================
+# OS Generated Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
