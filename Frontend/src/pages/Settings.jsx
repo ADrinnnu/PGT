@@ -30,7 +30,7 @@ const Settings = () => {
     name: storedUser.name || "Admin User",
     email: storedUser.email || "",
     role: storedUser.role || "Head Admin",
-    company: "Tarlac Provincial Transport",
+    company: storedUser.companyName || "Loading...",
     bio: "Super Administrator for Tarlac Logistics Operations.",
   });
 
@@ -54,11 +54,13 @@ const Settings = () => {
             name: data.name,
             email: data.email,
             role: data.role,
+            company: data.companyName || prev.company,
           }));
           const updatedCache = {
             ...storedUser,
             name: data.name,
             email: data.email,
+            companyName: data.companyName || storedUser.companyName,
           };
           localStorage.setItem("tms_user", JSON.stringify(updatedCache));
         }
@@ -102,6 +104,7 @@ const Settings = () => {
             ...storedUser,
             name: user.name,
             email: user.email,
+            companyName: user.company,
           };
           localStorage.setItem("tms_user", JSON.stringify(updatedUser));
           alert("Profile updated successfully!");

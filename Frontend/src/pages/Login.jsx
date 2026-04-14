@@ -44,6 +44,7 @@ const Login = () => {
           name: data.name,
           role: data.role,
           companyId: data.companyId,
+          companyName: data.companyName,
         }),
       );
 

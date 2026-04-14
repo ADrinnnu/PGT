@@ -50,12 +50,24 @@ public class AuthController : ControllerBase
 
             var token = _tokenService.CreateToken(user);
 
+            string companyName = "System Administrator (No Company)";
+            if (user.CompanyId.HasValue && user.CompanyId.Value > 0)
+            {
+                var company = await _context.Companies.FindAsync(user.CompanyId.Value);
+                if (company != null) companyName = company.Name;
+            }
+            else if (user.Role == "HeadAdmin")
+            {
+                companyName = "Main System Administrator";
+            }
+
             return Ok(new
             {
                 token,
                 name = user.Name,
                 role = user.Role,
-                companyId = user.CompanyId
+                companyId = user.CompanyId,
+                companyName = companyName
             });
         }
         catch (Exception ex)
@@ -75,12 +87,24 @@ public class AuthController : ControllerBase
 
         if (user == null) return NotFound(new { message = "User not found." });
 
+        string companyName = "System Administrator (No Company)";
+        if (user.CompanyId.HasValue && user.CompanyId.Value > 0)
+        {
+            var company = await _context.Companies.FindAsync(user.CompanyId.Value);
+            if (company != null) companyName = company.Name;
+        }
+        else if (user.Role == "HeadAdmin")
+        {
+            companyName = "Main System Administrator";
+        }
+
         return Ok(new
         {
             name = user.Name,
             email = user.Email,
             role = user.Role,
-            companyId = user.CompanyId
+            companyId = user.CompanyId,
+            companyName = companyName
         });
     }
 

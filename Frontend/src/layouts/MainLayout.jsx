@@ -33,8 +33,15 @@ const MainLayout = () => {
             <div className="h-10 w-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-900/50">
               <Truck className="text-white" size={20} />
             </div>
-            <span className={`font-extrabold text-2xl text-white ${!isSidebarOpen && 'hidden'}`}>
-              TMS<span className="text-emerald-500">.</span>
+            <span 
+              className={`font-extrabold text-white break-words max-w-[190px] ${!isSidebarOpen && 'hidden'} ${
+                (user.companyName || "TMS").length > 22 ? 'text-xs leading-tight' :
+                (user.companyName || "TMS").length > 14 ? 'text-sm leading-snug' :
+                'text-xl'
+              }`}
+              title={user.companyName || "TMS"}
+            >
+              {user.companyName || "TMS"}<span className="text-emerald-500">.</span>
             </span>
           </div>
         </div>
