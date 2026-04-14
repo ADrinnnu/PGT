@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import api from "../api/axios";
 import {
   MapPin,
   Plus,
@@ -34,7 +35,6 @@ const customIcon = new L.Icon({
   iconAnchor: [12, 41],
 });
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5074";
 
 const MapClickHandler = ({ onMapClick }) => {
   useMapEvents({ click: (e) => onMapClick([e.latlng.lat, e.latlng.lng]) });
@@ -69,13 +69,8 @@ const RoutesPage = () => {
 
   const fetchRoutes = async () => {
     try {
-      const token = localStorage.getItem("tms_token");
-      const response = await fetch(`${API_URL}/api/transitroutes`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch routes");
-      const data = await response.json();
-      setRoutes(data);
+      const response = await api.get("/transitroutes");
+      setRoutes(response.data);
     } catch (error) {
       console.error("Error fetching routes:", error);
     } finally {
@@ -168,7 +163,6 @@ const RoutesPage = () => {
     setStatus({ type: "", message: "" });
 
     try {
-      const token = localStorage.getItem("tms_token");
       const payload = {
         origin: formData.origin,
         destination: formData.destination,
@@ -182,16 +176,7 @@ const RoutesPage = () => {
         payload.companyId = parseInt(formData.companyId, 10);
       }
 
-      const response = await fetch(`${API_URL}/api/transitroutes`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error("Failed to save route");
+      await api.post("/transitroutes", payload);
 
       setStatus({ type: "success", message: "Route configured successfully!" });
       setFormData({
@@ -237,12 +222,7 @@ const RoutesPage = () => {
     e.stopPropagation();
     if (window.confirm("Are you sure you want to delete this route?")) {
       try {
-        const token = localStorage.getItem("tms_token");
-        const response = await fetch(`${API_URL}/api/transitroutes/${id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!response.ok) throw new Error("Failed to delete route");
+        await api.delete(`/transitroutes/${id}`);
         setRoutes(routes.filter((r) => r.id !== id));
       } catch (error) {
         alert("Failed to delete route.");
