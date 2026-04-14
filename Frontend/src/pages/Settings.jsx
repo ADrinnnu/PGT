@@ -40,6 +40,15 @@ const Settings = () => {
     confirm: "",
   });
 
+  const [notifications, setNotifications] = useState(() => {
+    const saved = localStorage.getItem("tms_notifications");
+    return saved ? JSON.parse(saved) : {
+      emailAlerts: true,
+      pushNotifications: true,
+      driverArrival: false
+    };
+  });
+
   useEffect(() => {
     const fetchProfile = async () => {
       const token = localStorage.getItem("tms_token");
@@ -163,6 +172,9 @@ const Settings = () => {
       } catch (error) {
         alert("Network error. Please make sure the C# server is running.");
       }
+    } else if (activeTab === "notifications") {
+      localStorage.setItem("tms_notifications", JSON.stringify(notifications));
+      alert("Notification preferences saved successfully!");
     }
 
     setIsLoading(false);
@@ -426,15 +438,18 @@ const Settings = () => {
               <div className="space-y-4">
                 <NotificationToggle
                   label="Email Alerts for New Trips"
-                  defaultChecked={true}
+                  checked={notifications.emailAlerts}
+                  onChange={(e) => setNotifications({...notifications, emailAlerts: e.target.checked})}
                 />
                 <NotificationToggle
                   label="Browser Push Notifications"
-                  defaultChecked={true}
+                  checked={notifications.pushNotifications}
+                  onChange={(e) => setNotifications({...notifications, pushNotifications: e.target.checked})}
                 />
                 <NotificationToggle
                   label="Driver Arrival Notifications"
-                  defaultChecked={false}
+                  checked={notifications.driverArrival}
+                  onChange={(e) => setNotifications({...notifications, driverArrival: e.target.checked})}
                 />
               </div>
             </div>
@@ -445,8 +460,7 @@ const Settings = () => {
               onClick={handleSave}
               disabled={
                 isLoading ||
-                activeTab === "company" ||
-                activeTab === "notifications"
+                activeTab === "company"
               }
               className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-200 font-bold transition-all transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50"
             >
@@ -465,14 +479,15 @@ const Settings = () => {
   );
 };
 
-const NotificationToggle = ({ label, defaultChecked }) => (
+const NotificationToggle = ({ label, checked, onChange }) => (
   <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
     <span className="text-sm font-bold text-slate-700">{label}</span>
     <label className="relative inline-flex items-center cursor-pointer">
       <input
         type="checkbox"
         className="sr-only peer"
-        defaultChecked={defaultChecked}
+        checked={checked}
+        onChange={onChange}
       />
       <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
     </label>

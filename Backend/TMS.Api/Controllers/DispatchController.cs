@@ -70,6 +70,19 @@ namespace TMS.Api.Controllers
             };
 
             _context.Dispatches.Add(dispatch);
+
+            // Create notification for the dispatch
+            var notification = new Notification
+            {
+                Title = "New Dispatch Assigned",
+                Message = $"Vehicle {request.VehicleId} has been dispatched to route '{request.RouteName}'.",
+                Type = "info",
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false,
+                CompanyId = companyIdToAssign
+            };
+            _context.Notifications.Add(notification);
+
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Dispatch scheduled successfully." });

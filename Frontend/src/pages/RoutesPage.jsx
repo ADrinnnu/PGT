@@ -95,29 +95,57 @@ const RoutesPage = () => {
     setFormData({ ...formData, pricePerKm: newPrice, baseFare: newFare });
   };
 
+  const reverseGeocode = async (latlng, field) => {
+    try {
+      setFormData(prev => ({ ...prev, [field]: "Detecting location..." }));
+      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng[0]}&lon=${latlng[1]}`);
+      const data = await response.json();
+      if (data && data.display_name) {
+        // Extract the most specific parts of the address (e.g., Building, Street, Suburb)
+        const parts = data.display_name.split(',').map(p => p.trim());
+        // Use the first 3 geographical parts for an exact but readable name
+        const exactLocation = parts.length > 3 ? parts.slice(0, 3).join(', ') : data.display_name;
+        
+        setFormData(prev => ({ ...prev, [field]: exactLocation }));
+      } else {
+        setFormData(prev => ({ ...prev, [field]: "Unknown Location" }));
+      }
+    } catch (err) {
+      console.error("Reverse geocoding error:", err);
+      setFormData(prev => ({ ...prev, [field]: "" }));
+    }
+  };
+
   const handleMapClick = async (latlng) => {
     if (waypoints.length === 0) {
       setWaypoints([latlng]);
       setRoutePath([]);
       setFormData((prev) => ({
         ...prev,
+        origin: "",
+        destination: "",
         distanceKm: 0,
         estimatedMinutes: "",
         baseFare: "",
       }));
+      await reverseGeocode(latlng, "origin");
     } else if (waypoints.length === 1) {
       const newWaypoints = [...waypoints, latlng];
       setWaypoints(newWaypoints);
+      await reverseGeocode(latlng, "destination");
       await calculateRoadRoute(newWaypoints[0], latlng);
     } else {
       setWaypoints([latlng]);
       setRoutePath([]);
       setFormData((prev) => ({
         ...prev,
+        origin: "",
+        destination: "",
         distanceKm: 0,
         estimatedMinutes: "",
         baseFare: "",
       }));
+      await reverseGeocode(latlng, "origin");
     }
   };
 
@@ -155,6 +183,8 @@ const RoutesPage = () => {
     setRoutePath([]);
     setFormData((prev) => ({
       ...prev,
+      origin: "",
+      destination: "",
       distanceKm: 0,
       estimatedMinutes: "",
       baseFare: "",
