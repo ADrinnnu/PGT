@@ -20,6 +20,7 @@ const Schedule = () => {
   const [routes, setRoutes] = useState([]);
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -42,17 +43,25 @@ const Schedule = () => {
       const token = localStorage.getItem("tms_token");
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [dispRes, routeRes, driverRes, vehRes] = await Promise.all([
+      const requests = [
         fetch(`${API_URL}/api/dispatch`, { headers }),
         fetch(`${API_URL}/api/transitroutes`, { headers }),
         fetch(`${API_URL}/api/drivers`, { headers }),
         fetch(`${API_URL}/api/vehicles`, { headers }),
-      ]);
+      ];
+
+      if (isHeadAdmin) {
+        requests.push(fetch(`${API_URL}/api/companies`, { headers }));
+      }
+
+      const responses = await Promise.all(requests);
+      const [dispRes, routeRes, driverRes, vehRes, compRes] = responses;
 
       if (dispRes.ok) setDispatches(await dispRes.json());
       if (routeRes.ok) setRoutes(await routeRes.json());
       if (driverRes.ok) setDrivers(await driverRes.json());
       if (vehRes.ok) setVehicles(await vehRes.json());
+      if (compRes && compRes.ok) setCompanies(await compRes.json());
     } catch (error) {
       console.error(error);
     } finally {
@@ -302,22 +311,15 @@ const Schedule = () => {
 
               {isHeadAdmin && (
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-bold text-slate-700">
-                    Assign to Company (ID)
-                  </label>
+                  <label className="text-sm font-bold text-slate-700">Assign to Company</label>
                   <div className="relative">
-                    <Building
-                      className="absolute left-3 top-3.5 text-slate-400"
-                      size={20}
-                    />
-                    <input
-                      type="number"
-                      name="companyId"
-                      required
-                      value={formData.companyId}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none"
-                    />
+                    <Building className="absolute left-3 top-3.5 text-slate-400" size={20} />
+                    <select name="companyId" required value={formData.companyId} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none appearance-none">
+                      <option value="">-- Select Company --</option>
+                      {companies.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               )}

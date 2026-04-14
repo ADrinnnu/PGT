@@ -313,9 +313,9 @@ const Settings = () => {
                       className="absolute right-3 top-3.5 text-slate-400 hover:text-emerald-600 transition-colors"
                     >
                       {showVisibility.current ? (
-                        <EyeOff size={20} />
-                      ) : (
                         <Eye size={20} />
+                      ) : (
+                        <EyeOff size={20} />
                       )}
                     </button>
                   </div>
@@ -345,10 +345,10 @@ const Settings = () => {
                       }
                       className="absolute right-3 top-3.5 text-slate-400 hover:text-emerald-600 transition-colors"
                     >
-                      {showVisibility.new ? (
-                        <EyeOff size={20} />
-                      ) : (
+                      {showVisibility.current ? (
                         <Eye size={20} />
+                      ) : (
+                        <EyeOff size={20} />
                       )}
                     </button>
                   </div>
@@ -378,10 +378,10 @@ const Settings = () => {
                       }
                       className="absolute right-3 top-3.5 text-slate-400 hover:text-emerald-600 transition-colors"
                     >
-                      {showVisibility.confirm ? (
-                        <EyeOff size={20} />
-                      ) : (
+                      {showVisibility.current ? (
                         <Eye size={20} />
+                      ) : (
+                        <EyeOff size={20} />
                       )}
                     </button>
                   </div>

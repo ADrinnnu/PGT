@@ -4,6 +4,7 @@ import api from '../api/axios';
 
 const Vehicles = () => {
   const [vehicles, setVehicles] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -38,6 +39,9 @@ const Vehicles = () => {
 
   useEffect(() => {
     fetchVehicles();
+    if (isHeadAdmin) {
+      api.get('/companies').then(res => setCompanies(res.data)).catch(console.error);
+    }
   }, []);
 
   const handleChange = (e) => {
@@ -190,10 +194,15 @@ const Vehicles = () => {
 
               {isHeadAdmin && (
                 <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-bold text-slate-700">Assign to Company (ID)</label>
+                  <label className="text-sm font-bold text-slate-700">Assign to Company</label>
                   <div className="relative">
                     <Building className="absolute left-3 top-3.5 text-slate-400" size={20} />
-                    <input type="number" name="companyId" required value={formData.companyId} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none" />
+                    <select name="companyId" required value={formData.companyId} onChange={handleChange} className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none appearance-none">
+                      <option value="">-- Select Company --</option>
+                      {companies.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               )}
